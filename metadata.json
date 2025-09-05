@@ -1,0 +1,5 @@
+{
+  "name": "AI Face Weaver",
+  "description": "An application to generate a unique human face using AI, and then place that same face into various realistic lifestyle scenarios.",
+  "requestFramePermissions": []
+}
