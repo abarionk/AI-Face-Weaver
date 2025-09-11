@@ -16,6 +16,10 @@ interface FaceData {
 
 interface FaceHistoryItem extends FaceData {
   description: string;
+  age: string;
+  gender: string;
+  ethnicity: string;
+  hairColor: string;
 }
 
 const App: React.FC = () => {
@@ -24,6 +28,12 @@ const App: React.FC = () => {
   const [lifestylePrompt, setLifestylePrompt] = useState<string>('');
   const [expression, setExpression] = useState<string>('Neutral');
   const [lifestyleStyle, setLifestyleStyle] = useState<string>('Default');
+  
+  // New state for granular face control
+  const [age, setAge] = useState<string>('Any');
+  const [gender, setGender] = useState<string>('Any');
+  const [ethnicity, setEthnicity] = useState<string>('Any');
+  const [hairColor, setHairColor] = useState<string>('Any');
   
   const [faceImage, setFaceImage] = useState<FaceData | null>(null);
   const [faceSource, setFaceSource] = useState<'generated' | 'uploaded' | null>(null);
@@ -44,8 +54,15 @@ const App: React.FC = () => {
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // Options for new controls
+  const ageOptions = ['Any', '18-25', '26-35', '36-50', '51-65', '65+'];
+  const genderOptions = ['Any', 'Woman', 'Man', 'Non-binary'];
+  const ethnicityOptions = ['Any', 'Asian', 'Black', 'Caucasian', 'Hispanic', 'Middle Eastern', 'Mixed'];
+  const hairColorOptions = ['Any', 'Black', 'Brown', 'Blonde', 'Red', 'Gray', 'Other'];
   const expressions = ['Neutral', 'Smiling', 'Happy', 'Excited', 'Cute', 'Surprised', 'Thoughtful', 'Confused', 'Sad', 'Angry'];
   const lifestyleStyles = ['Default', 'With a Pet', 'With Food', 'Playful', 'Mysterious', 'Charming', 'Relaxed', 'Emotional'];
+  
+  const hasNoDescription = !faceDescription.trim() && age === 'Any' && gender === 'Any' && ethnicity === 'Any' && hairColor === 'Any';
 
   const handleGenerateSuggestions = useCallback(async () => {
     if (!faceDescription.trim()) {
@@ -72,7 +89,7 @@ const App: React.FC = () => {
   }, [faceDescription, suggestionTopic]);
 
   const handleGenerateFace = useCallback(async () => {
-    if (!faceDescription.trim()) {
+    if (hasNoDescription) {
       setError('Please provide a description for the face.');
       return;
     }
@@ -88,8 +105,15 @@ const App: React.FC = () => {
     setShowSuggestionsPanel(false);
 
     try {
-      const result = await generateFace(faceDescription);
-      const newFace = { ...result, description: faceDescription };
+      const result = await generateFace(faceDescription, age, gender, ethnicity, hairColor);
+      const newFace: FaceHistoryItem = { 
+        ...result, 
+        description: faceDescription,
+        age,
+        gender,
+        ethnicity,
+        hairColor,
+      };
       setFaceSource('generated');
       setFaceImage(newFace);
       setFaceHistory(prev => [newFace, ...prev.filter(f => f.url !== newFace.url)]);
@@ -100,13 +124,13 @@ const App: React.FC = () => {
     } finally {
       setIsLoadingFace(false);
     }
-  }, [faceDescription]);
+  }, [faceDescription, age, gender, ethnicity, hairColor, hasNoDescription]);
 
   const handleFileChange = useCallback(async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
 
-    if (!faceDescription.trim()) {
+    if (hasNoDescription) {
       setError('Please provide a description for the uploaded face first.');
       return;
     }
@@ -150,7 +174,7 @@ const App: React.FC = () => {
     if (event.target) {
         event.target.value = '';
     }
-  }, [faceDescription]);
+  }, [hasNoDescription]);
 
   const handleUploadClick = () => {
     fileInputRef.current?.click();
@@ -187,6 +211,10 @@ const App: React.FC = () => {
     setLifestylePrompt('');
     setExpression('Neutral');
     setLifestyleStyle('Default');
+    setAge('Any');
+    setGender('Any');
+    setEthnicity('Any');
+    setHairColor('Any');
     setFaceImage(null);
     setFaceSource(null);
     setLifestyleImage(null);
@@ -207,6 +235,10 @@ const App: React.FC = () => {
   const handleSelectFromHistory = (face: FaceHistoryItem) => {
     setFaceImage({ url: face.url, mimeType: face.mimeType });
     setFaceDescription(face.description);
+    setAge(face.age);
+    setGender(face.gender);
+    setEthnicity(face.ethnicity);
+    setHairColor(face.hairColor);
     setFaceSource('generated');
     setCurrentStep(Step.Lifestyle);
     setLifestyleImage(null);
@@ -239,11 +271,39 @@ const App: React.FC = () => {
               <label htmlFor="faceDescription" className="block text-lg font-semibold text-sky-300 mb-2">
                 Step 1: Describe or Upload a Face
               </label>
+              
+              <div className="grid grid-cols-2 gap-4 mb-4">
+                <div>
+                  <label htmlFor="gender" className="block text-sm font-medium text-gray-400 mb-1">Gender</label>
+                  <select id="gender" value={gender} onChange={(e) => setGender(e.target.value)} disabled={currentStep !== Step.Face || isLoadingFace} className="w-full bg-gray-900 border border-gray-600 rounded-lg p-2.5 focus:ring-2 focus:ring-sky-500 focus:border-sky-500 transition duration-200 disabled:opacity-50">
+                      {genderOptions.map(option => <option key={option} value={option}>{option}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label htmlFor="age" className="block text-sm font-medium text-gray-400 mb-1">Age Range</label>
+                  <select id="age" value={age} onChange={(e) => setAge(e.target.value)} disabled={currentStep !== Step.Face || isLoadingFace} className="w-full bg-gray-900 border border-gray-600 rounded-lg p-2.5 focus:ring-2 focus:ring-sky-500 focus:border-sky-500 transition duration-200 disabled:opacity-50">
+                      {ageOptions.map(option => <option key={option} value={option}>{option}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label htmlFor="ethnicity" className="block text-sm font-medium text-gray-400 mb-1">Ethnicity</label>
+                  <select id="ethnicity" value={ethnicity} onChange={(e) => setEthnicity(e.target.value)} disabled={currentStep !== Step.Face || isLoadingFace} className="w-full bg-gray-900 border border-gray-600 rounded-lg p-2.5 focus:ring-2 focus:ring-sky-500 focus:border-sky-500 transition duration-200 disabled:opacity-50">
+                      {ethnicityOptions.map(option => <option key={option} value={option}>{option}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label htmlFor="hairColor" className="block text-sm font-medium text-gray-400 mb-1">Hair Color</label>
+                  <select id="hairColor" value={hairColor} onChange={(e) => setHairColor(e.target.value)} disabled={currentStep !== Step.Face || isLoadingFace} className="w-full bg-gray-900 border border-gray-600 rounded-lg p-2.5 focus:ring-2 focus:ring-sky-500 focus:border-sky-500 transition duration-200 disabled:opacity-50">
+                      {hairColorOptions.map(option => <option key={option} value={option}>{option}</option>)}
+                  </select>
+                </div>
+              </div>
+              
               <textarea
                 id="faceDescription"
-                rows={4}
+                rows={3}
                 className="w-full bg-gray-900 border border-gray-600 rounded-lg p-3 focus:ring-2 focus:ring-sky-500 focus:border-sky-500 transition duration-200 placeholder-gray-500 disabled:opacity-50"
-                placeholder="e.g., A smiling 30-year-old Japanese woman with long black hair. This description guides both generation and uploaded images."
+                placeholder="e.g., smiling, wearing glasses, with a distinctive birthmark. This adds extra detail."
                 value={faceDescription}
                 onChange={(e) => setFaceDescription(e.target.value)}
                 disabled={currentStep !== Step.Face || isLoadingFace}
@@ -260,7 +320,7 @@ const App: React.FC = () => {
                 {faceSource === 'generated' ? (
                   <button
                     onClick={handleGenerateFace}
-                    disabled={isLoadingFace || !faceDescription.trim()}
+                    disabled={isLoadingFace || hasNoDescription}
                     className="w-full bg-sky-700 hover:bg-sky-600 disabled:bg-sky-900 disabled:cursor-not-allowed text-white font-bold py-3 px-4 rounded-lg transition duration-200 flex items-center justify-center sm:col-span-2"
                   >
                     {isLoadingFace ? 'Generating Another...' : 'Generate a Different Face'}
@@ -269,14 +329,14 @@ const App: React.FC = () => {
                   <>
                     <button
                       onClick={handleGenerateFace}
-                      disabled={currentStep !== Step.Face || isLoadingFace || !faceDescription.trim()}
+                      disabled={currentStep !== Step.Face || isLoadingFace || hasNoDescription}
                       className="w-full bg-sky-600 hover:bg-sky-500 disabled:bg-sky-800 disabled:cursor-not-allowed text-white font-bold py-3 px-4 rounded-lg transition duration-200 flex items-center justify-center"
                     >
                       {isLoadingFace ? 'Generating...' : 'Generate Face'}
                     </button>
                      <button
                       onClick={handleUploadClick}
-                      disabled={currentStep !== Step.Face || isLoadingFace || !faceDescription.trim()}
+                      disabled={currentStep !== Step.Face || isLoadingFace || hasNoDescription}
                       className="w-full bg-gray-700 hover:bg-gray-600 disabled:bg-gray-800 disabled:cursor-not-allowed text-white font-bold py-3 px-4 rounded-lg transition duration-200 flex items-center justify-center"
                     >
                       Upload Face

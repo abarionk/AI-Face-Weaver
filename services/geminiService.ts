@@ -1,4 +1,3 @@
-
 import { GoogleGenAI, Modality, Type } from "@google/genai";
 
 if (!process.env.API_KEY) {
@@ -9,11 +8,52 @@ const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
 /**
  * Generates a photorealistic human face based on a text description.
- * @param description - The user's description of the face.
+ * @param description - The user's general description of the face.
+ * @param age - The desired age range for the person.
+ * @param gender - The desired gender for the person.
+ * @param ethnicity - The desired ethnicity for the person.
+ * @param hairColor - The desired hair color for the person.
  * @returns A promise that resolves to an object containing the base64 URL and MIME type of the generated image.
  */
-export const generateFace = async (description: string): Promise<{ url: string; mimeType: string; }> => {
-  const fullPrompt = `Photorealistic masterpiece, 8K, DSLR photo of a person described as: "${description}". Shot with a prime lens, focusing sharply on the eyes. The lighting is soft and natural, revealing incredibly detailed skin texture, including subtle pores and imperfections. The hair should have realistic strands and flyaways. Ensure the final image has a natural human quality and avoids any hint of digital airbrushing, plastic-like skin, or artificial smoothness. The background is a simple, out-of-focus studio gray.`;
+export const generateFace = async (
+  description: string,
+  age: string,
+  gender: string,
+  ethnicity: string,
+  hairColor: string
+): Promise<{ url: string; mimeType: string; }> => {
+  const descriptionParts: string[] = [];
+
+  // Build a structured description from the parameters
+  let coreIdentity = `A`;
+  const identityAttrs: string[] = [];
+  if (age && age.toLowerCase() !== 'any') identityAttrs.push(age);
+  if (ethnicity && ethnicity.toLowerCase() !== 'any') identityAttrs.push(ethnicity);
+
+  if (identityAttrs.length > 0) {
+    coreIdentity += ` ${identityAttrs.join(', ')}`;
+  }
+
+  if (gender && gender.toLowerCase() !== 'any') {
+    coreIdentity += ` ${gender}`;
+  } else {
+    coreIdentity += ` person`;
+  }
+  descriptionParts.push(coreIdentity);
+
+  // Add hair color
+  if (hairColor && hairColor.toLowerCase() !== 'any') {
+    descriptionParts.push(`with ${hairColor} hair`);
+  }
+
+  // Add the free-text description for more nuanced details
+  if (description) {
+    descriptionParts.push(`who is ${description}`);
+  }
+
+  const finalDescription = descriptionParts.join(' ');
+
+  const fullPrompt = `Photorealistic masterpiece, 8K, DSLR photo of a person described as: "${finalDescription}". Shot with a prime lens, focusing sharply on the eyes. The lighting is soft and natural, revealing incredibly detailed skin texture, including subtle pores and imperfections. The hair should have realistic strands and flyaways. Ensure the final image has a natural human quality and avoids any hint of digital airbrushing, plastic-like skin, or artificial smoothness. The background is a simple, out-of-focus studio gray.`;
 
   const response = await ai.models.generateImages({
     model: 'imagen-4.0-generate-001',
