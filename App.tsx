@@ -44,7 +44,7 @@ const App: React.FC = () => {
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const expressions = ['Neutral', 'Smiling', 'Happy', 'Cute', 'Surprised'];
+  const expressions = ['Neutral', 'Smiling', 'Happy', 'Excited', 'Cute', 'Surprised', 'Thoughtful', 'Confused', 'Sad', 'Angry'];
   const lifestyleStyles = ['Default', 'With a Pet', 'With Food', 'Playful', 'Mysterious', 'Charming', 'Relaxed', 'Emotional'];
 
   const handleGenerateSuggestions = useCallback(async () => {
