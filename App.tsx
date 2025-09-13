@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useRef } from 'react';
-import { generateFace, generateLifestyleScene, generateLifestyleSuggestions } from './services/geminiService';
+import { generateFace, generateLifestyleScene, generateLifestyleSuggestions, cleanScenePrompt } from './services/geminiService';
 import { Step } from './types';
 import Header from './components/Header';
 import StepIndicator from './components/StepIndicator';
@@ -49,6 +49,7 @@ const App: React.FC = () => {
 
   const [isLoadingFace, setIsLoadingFace] = useState<boolean>(false);
   const [isLoadingLifestyle, setIsLoadingLifestyle] = useState<boolean>(false);
+  const [lifestyleLoadingMessage, setLifestyleLoadingMessage] = useState<string>('Creating...');
   const [isLoadingSuggestions, setIsLoadingSuggestions] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -194,7 +195,11 @@ const App: React.FC = () => {
     setLifestyleImage(null);
 
     try {
-      const result = await generateLifestyleScene(faceImage.url, faceImage.mimeType, lifestylePrompt, expression, faceDescription, lifestyleStyle);
+      setLifestyleLoadingMessage('Analyzing prompt...');
+      const cleanedPrompt = await cleanScenePrompt(lifestylePrompt);
+
+      setLifestyleLoadingMessage('Creating scene...');
+      const result = await generateLifestyleScene(faceImage.url, faceImage.mimeType, cleanedPrompt, expression, lifestyleStyle);
       setLifestyleImage(result);
       setLifestyleHistory(prev => [result, ...prev.filter(item => item !== result)]);
     } catch (e) {
@@ -202,8 +207,9 @@ const App: React.FC = () => {
       setError(e instanceof Error ? e.message : 'An unknown error occurred while creating the lifestyle scene.');
     } finally {
       setIsLoadingLifestyle(false);
+      setLifestyleLoadingMessage('Creating...'); // Reset for next time
     }
-  }, [lifestylePrompt, faceImage, expression, faceDescription, lifestyleStyle]);
+  }, [lifestylePrompt, faceImage, expression, lifestyleStyle]);
   
   const handleReset = () => {
     setCurrentStep(Step.Face);
@@ -362,13 +368,11 @@ const App: React.FC = () => {
                   >
                     ✨ {showSuggestionsPanel ? 'Hide Ideas' : 'Get Ideas'}
                   </button>
-                  <button
-                    onClick={handleGenerateLifestyle}
-                    disabled={currentStep !== Step.Lifestyle || isLoadingLifestyle || !lifestylePrompt.trim()}
-                    className="bg-teal-600 hover:bg-teal-500 disabled:bg-teal-800 disabled:cursor-not-allowed text-white font-bold py-2 px-4 rounded-lg transition duration-200 flex items-center justify-center text-sm"
-                  >
-                    {isLoadingLifestyle ? 'Creating...' : 'Generate Scene'}
-                  </button>
+                  {faceImage && (
+                    <button onClick={handleReset} disabled={currentStep !== Step.Lifestyle} className="text-sm bg-gray-700 hover:bg-gray-600 text-gray-300 hover:text-white font-bold py-2 px-4 rounded-lg transition duration-200 disabled:opacity-50 disabled:cursor-not-allowed">
+                        Start Over
+                    </button>
+                  )}
                 </div>
               </div>
               
@@ -440,11 +444,13 @@ const App: React.FC = () => {
               />
             </div>
 
-            {faceImage && (
-                <button onClick={handleReset} className="w-full text-gray-400 hover:text-white hover:bg-gray-700 py-2 px-4 rounded-lg transition duration-200">
-                    Start Over
-                </button>
-            )}
+            <button
+              onClick={handleGenerateLifestyle}
+              disabled={currentStep !== Step.Lifestyle || isLoadingLifestyle || !lifestylePrompt.trim()}
+              className="w-full bg-teal-600 hover:bg-teal-500 disabled:bg-teal-800 disabled:cursor-not-allowed text-white font-bold py-3 px-4 rounded-lg transition duration-200 flex items-center justify-center"
+            >
+              {isLoadingLifestyle ? lifestyleLoadingMessage : 'Generate Scene'}
+            </button>
           </div>
 
           <div className="space-y-8">
