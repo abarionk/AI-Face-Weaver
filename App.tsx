@@ -34,6 +34,7 @@ const App: React.FC = () => {
   const [gender, setGender] = useState<string>('Any');
   const [ethnicity, setEthnicity] = useState<string>('Any');
   const [hairColor, setHairColor] = useState<string>('Any');
+  const [showFaceDetails, setShowFaceDetails] = useState<boolean>(false);
   
   const [faceImage, setFaceImage] = useState<FaceData | null>(null);
   const [faceSource, setFaceSource] = useState<'generated' | 'uploaded' | null>(null);
@@ -231,6 +232,7 @@ const App: React.FC = () => {
     setShowFaceHistory(false);
     setShowLifestyleHistory(false);
     setShowSuggestionsPanel(false);
+    setShowFaceDetails(false);
     setError(null);
   };
 
@@ -278,33 +280,6 @@ const App: React.FC = () => {
                 Step 1: Describe or Upload a Face
               </label>
               
-              <div className="grid grid-cols-2 gap-4 mb-4">
-                <div>
-                  <label htmlFor="gender" className="block text-sm font-medium text-gray-400 mb-1">Gender</label>
-                  <select id="gender" value={gender} onChange={(e) => setGender(e.target.value)} disabled={currentStep !== Step.Face || isLoadingFace} className="w-full bg-gray-900 border border-gray-600 rounded-lg p-2.5 focus:ring-2 focus:ring-sky-500 focus:border-sky-500 transition duration-200 disabled:opacity-50">
-                      {genderOptions.map(option => <option key={option} value={option}>{option}</option>)}
-                  </select>
-                </div>
-                <div>
-                  <label htmlFor="age" className="block text-sm font-medium text-gray-400 mb-1">Age Range</label>
-                  <select id="age" value={age} onChange={(e) => setAge(e.target.value)} disabled={currentStep !== Step.Face || isLoadingFace} className="w-full bg-gray-900 border border-gray-600 rounded-lg p-2.5 focus:ring-2 focus:ring-sky-500 focus:border-sky-500 transition duration-200 disabled:opacity-50">
-                      {ageOptions.map(option => <option key={option} value={option}>{option}</option>)}
-                  </select>
-                </div>
-                <div>
-                  <label htmlFor="ethnicity" className="block text-sm font-medium text-gray-400 mb-1">Ethnicity</label>
-                  <select id="ethnicity" value={ethnicity} onChange={(e) => setEthnicity(e.target.value)} disabled={currentStep !== Step.Face || isLoadingFace} className="w-full bg-gray-900 border border-gray-600 rounded-lg p-2.5 focus:ring-2 focus:ring-sky-500 focus:border-sky-500 transition duration-200 disabled:opacity-50">
-                      {ethnicityOptions.map(option => <option key={option} value={option}>{option}</option>)}
-                  </select>
-                </div>
-                <div>
-                  <label htmlFor="hairColor" className="block text-sm font-medium text-gray-400 mb-1">Hair Color</label>
-                  <select id="hairColor" value={hairColor} onChange={(e) => setHairColor(e.target.value)} disabled={currentStep !== Step.Face || isLoadingFace} className="w-full bg-gray-900 border border-gray-600 rounded-lg p-2.5 focus:ring-2 focus:ring-sky-500 focus:border-sky-500 transition duration-200 disabled:opacity-50">
-                      {hairColorOptions.map(option => <option key={option} value={option}>{option}</option>)}
-                  </select>
-                </div>
-              </div>
-              
               <textarea
                 id="faceDescription"
                 rows={3}
@@ -314,6 +289,50 @@ const App: React.FC = () => {
                 onChange={(e) => setFaceDescription(e.target.value)}
                 disabled={currentStep !== Step.Face || isLoadingFace}
               />
+
+              <div className="mt-4">
+                <button
+                  onClick={() => setShowFaceDetails(prev => !prev)}
+                  disabled={currentStep !== Step.Face || isLoadingFace}
+                  className="w-full flex justify-between items-center text-left bg-gray-700/50 hover:bg-gray-700 p-3 rounded-lg transition-colors duration-200 disabled:opacity-50"
+                  aria-expanded={showFaceDetails}
+                >
+                  <span className="font-semibold text-gray-300">Refine with Specifics</span>
+                  <svg className={`w-5 h-5 text-gray-400 transition-transform duration-300 ${showFaceDetails ? 'rotate-180' : ''}`} xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+                  </svg>
+                </button>
+              </div>
+
+              {showFaceDetails && (
+                <div className="grid grid-cols-2 gap-4 mt-4 p-4 bg-gray-900/50 rounded-lg border border-gray-700">
+                  <div>
+                    <label htmlFor="gender" className="block text-sm font-medium text-gray-400 mb-1">Gender</label>
+                    <select id="gender" value={gender} onChange={(e) => setGender(e.target.value)} disabled={currentStep !== Step.Face || isLoadingFace} className="w-full bg-gray-900 border border-gray-600 rounded-lg p-2.5 focus:ring-2 focus:ring-sky-500 focus:border-sky-500 transition duration-200 disabled:opacity-50">
+                        {genderOptions.map(option => <option key={option} value={option}>{option}</option>)}
+                    </select>
+                  </div>
+                  <div>
+                    <label htmlFor="age" className="block text-sm font-medium text-gray-400 mb-1">Age Range</label>
+                    <select id="age" value={age} onChange={(e) => setAge(e.target.value)} disabled={currentStep !== Step.Face || isLoadingFace} className="w-full bg-gray-900 border border-gray-600 rounded-lg p-2.5 focus:ring-2 focus:ring-sky-500 focus:border-sky-500 transition duration-200 disabled:opacity-50">
+                        {ageOptions.map(option => <option key={option} value={option}>{option}</option>)}
+                    </select>
+                  </div>
+                  <div>
+                    <label htmlFor="ethnicity" className="block text-sm font-medium text-gray-400 mb-1">Ethnicity</label>
+                    <select id="ethnicity" value={ethnicity} onChange={(e) => setEthnicity(e.target.value)} disabled={currentStep !== Step.Face || isLoadingFace} className="w-full bg-gray-900 border border-gray-600 rounded-lg p-2.5 focus:ring-2 focus:ring-sky-500 focus:border-sky-500 transition duration-200 disabled:opacity-50">
+                        {ethnicityOptions.map(option => <option key={option} value={option}>{option}</option>)}
+                    </select>
+                  </div>
+                  <div>
+                    <label htmlFor="hairColor" className="block text-sm font-medium text-gray-400 mb-1">Hair Color</label>
+                    <select id="hairColor" value={hairColor} onChange={(e) => setHairColor(e.target.value)} disabled={currentStep !== Step.Face || isLoadingFace} className="w-full bg-gray-900 border border-gray-600 rounded-lg p-2.5 focus:ring-2 focus:ring-sky-500 focus:border-sky-500 transition duration-200 disabled:opacity-50">
+                        {hairColorOptions.map(option => <option key={option} value={option}>{option}</option>)}
+                    </select>
+                  </div>
+                </div>
+              )}
+
               <input 
                 type="file" 
                 ref={fileInputRef} 
