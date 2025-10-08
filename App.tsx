@@ -1,3 +1,4 @@
+
 import React, { useState, useCallback, useRef } from 'react';
 import { generateFace, generateLifestyleScene, generateLifestyleSuggestions, cleanScenePrompt } from './services/geminiService';
 import { Step } from './types';
@@ -132,11 +133,6 @@ const App: React.FC = () => {
     const file = event.target.files?.[0];
     if (!file) return;
 
-    if (hasNoDescription) {
-      setError('Please provide a description for the uploaded face first.');
-      return;
-    }
-    
     if (!['image/jpeg', 'image/png'].includes(file.type)) {
         setError('Please upload a valid image file (JPEG or PNG).');
         return;
@@ -158,8 +154,18 @@ const App: React.FC = () => {
     reader.onload = async () => {
       try {
         const resultUrl = reader.result as string;
+        const newFace: FaceHistoryItem = { 
+          url: resultUrl, 
+          mimeType: file.type,
+          description: faceDescription,
+          age,
+          gender,
+          ethnicity,
+          hairColor,
+        };
         setFaceSource('uploaded');
-        setFaceImage({ url: resultUrl, mimeType: file.type });
+        setFaceImage(newFace);
+        setFaceHistory(prev => [newFace, ...prev.filter(f => f.url !== newFace.url)]);
         setCurrentStep(Step.Lifestyle);
       } catch (e) {
         setError('An error occurred while processing the uploaded image.');
@@ -176,7 +182,7 @@ const App: React.FC = () => {
     if (event.target) {
         event.target.value = '';
     }
-  }, [hasNoDescription]);
+  }, [faceDescription, age, gender, ethnicity, hairColor]);
 
   const handleUploadClick = () => {
     fileInputRef.current?.click();
@@ -287,13 +293,13 @@ const App: React.FC = () => {
                 placeholder="e.g., smiling, wearing glasses, with a distinctive birthmark. This adds extra detail."
                 value={faceDescription}
                 onChange={(e) => setFaceDescription(e.target.value)}
-                disabled={currentStep !== Step.Face || isLoadingFace}
+                disabled={isLoadingFace}
               />
 
               <div className="mt-4">
                 <button
                   onClick={() => setShowFaceDetails(prev => !prev)}
-                  disabled={currentStep !== Step.Face || isLoadingFace}
+                  disabled={isLoadingFace}
                   className="w-full flex justify-between items-center text-left bg-gray-700/50 hover:bg-gray-700 p-3 rounded-lg transition-colors duration-200 disabled:opacity-50"
                   aria-expanded={showFaceDetails}
                 >
@@ -308,25 +314,25 @@ const App: React.FC = () => {
                 <div className="grid grid-cols-2 gap-4 mt-4 p-4 bg-gray-900/50 rounded-lg border border-gray-700">
                   <div>
                     <label htmlFor="gender" className="block text-sm font-medium text-gray-400 mb-1">Gender</label>
-                    <select id="gender" value={gender} onChange={(e) => setGender(e.target.value)} disabled={currentStep !== Step.Face || isLoadingFace} className="w-full bg-gray-900 border border-gray-600 rounded-lg p-2.5 focus:ring-2 focus:ring-sky-500 focus:border-sky-500 transition duration-200 disabled:opacity-50">
+                    <select id="gender" value={gender} onChange={(e) => setGender(e.target.value)} disabled={isLoadingFace} className="w-full bg-gray-900 border border-gray-600 rounded-lg p-2.5 focus:ring-2 focus:ring-sky-500 focus:border-sky-500 transition duration-200 disabled:opacity-50">
                         {genderOptions.map(option => <option key={option} value={option}>{option}</option>)}
                     </select>
                   </div>
                   <div>
                     <label htmlFor="age" className="block text-sm font-medium text-gray-400 mb-1">Age Range</label>
-                    <select id="age" value={age} onChange={(e) => setAge(e.target.value)} disabled={currentStep !== Step.Face || isLoadingFace} className="w-full bg-gray-900 border border-gray-600 rounded-lg p-2.5 focus:ring-2 focus:ring-sky-500 focus:border-sky-500 transition duration-200 disabled:opacity-50">
+                    <select id="age" value={age} onChange={(e) => setAge(e.target.value)} disabled={isLoadingFace} className="w-full bg-gray-900 border border-gray-600 rounded-lg p-2.5 focus:ring-2 focus:ring-sky-500 focus:border-sky-500 transition duration-200 disabled:opacity-50">
                         {ageOptions.map(option => <option key={option} value={option}>{option}</option>)}
                     </select>
                   </div>
                   <div>
                     <label htmlFor="ethnicity" className="block text-sm font-medium text-gray-400 mb-1">Ethnicity</label>
-                    <select id="ethnicity" value={ethnicity} onChange={(e) => setEthnicity(e.target.value)} disabled={currentStep !== Step.Face || isLoadingFace} className="w-full bg-gray-900 border border-gray-600 rounded-lg p-2.5 focus:ring-2 focus:ring-sky-500 focus:border-sky-500 transition duration-200 disabled:opacity-50">
+                    <select id="ethnicity" value={ethnicity} onChange={(e) => setEthnicity(e.target.value)} disabled={isLoadingFace} className="w-full bg-gray-900 border border-gray-600 rounded-lg p-2.5 focus:ring-2 focus:ring-sky-500 focus:border-sky-500 transition duration-200 disabled:opacity-50">
                         {ethnicityOptions.map(option => <option key={option} value={option}>{option}</option>)}
                     </select>
                   </div>
                   <div>
                     <label htmlFor="hairColor" className="block text-sm font-medium text-gray-400 mb-1">Hair Color</label>
-                    <select id="hairColor" value={hairColor} onChange={(e) => setHairColor(e.target.value)} disabled={currentStep !== Step.Face || isLoadingFace} className="w-full bg-gray-900 border border-gray-600 rounded-lg p-2.5 focus:ring-2 focus:ring-sky-500 focus:border-sky-500 transition duration-200 disabled:opacity-50">
+                    <select id="hairColor" value={hairColor} onChange={(e) => setHairColor(e.target.value)} disabled={isLoadingFace} className="w-full bg-gray-900 border border-gray-600 rounded-lg p-2.5 focus:ring-2 focus:ring-sky-500 focus:border-sky-500 transition duration-200 disabled:opacity-50">
                         {hairColorOptions.map(option => <option key={option} value={option}>{option}</option>)}
                     </select>
                   </div>
@@ -354,14 +360,14 @@ const App: React.FC = () => {
                   <>
                     <button
                       onClick={handleGenerateFace}
-                      disabled={currentStep !== Step.Face || isLoadingFace || hasNoDescription}
+                      disabled={isLoadingFace || hasNoDescription}
                       className="w-full bg-sky-600 hover:bg-sky-500 disabled:bg-sky-800 disabled:cursor-not-allowed text-white font-bold py-3 px-4 rounded-lg transition duration-200 flex items-center justify-center"
                     >
                       {isLoadingFace ? 'Generating...' : 'Generate Face'}
                     </button>
                      <button
                       onClick={handleUploadClick}
-                      disabled={currentStep !== Step.Face || isLoadingFace || hasNoDescription}
+                      disabled={isLoadingFace}
                       className="w-full bg-gray-700 hover:bg-gray-600 disabled:bg-gray-800 disabled:cursor-not-allowed text-white font-bold py-3 px-4 rounded-lg transition duration-200 flex items-center justify-center"
                     >
                       Upload Face
