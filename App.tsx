@@ -1,4 +1,3 @@
-
 import React, { useState, useCallback, useRef } from 'react';
 import { generateFace, generateLifestyleScene, generateLifestyleSuggestions, cleanScenePrompt } from './services/geminiService';
 import { Step } from './types';
@@ -29,6 +28,8 @@ const App: React.FC = () => {
   const [lifestylePrompt, setLifestylePrompt] = useState<string>('');
   const [expression, setExpression] = useState<string>('Neutral');
   const [lifestyleStyle, setLifestyleStyle] = useState<string>('Default');
+  const [aspectRatio, setAspectRatio] = useState<string>('1:1');
+  const [imageCount, setImageCount] = useState<number>(1);
   
   // New state for granular face control
   const [age, setAge] = useState<string>('Any');
@@ -64,6 +65,14 @@ const App: React.FC = () => {
   const hairColorOptions = ['Any', 'Black', 'Brown', 'Blonde', 'Red', 'Gray', 'Other'];
   const expressions = ['Neutral', 'Smiling', 'Happy', 'Excited', 'Cute', 'Surprised', 'Thoughtful', 'Confused', 'Sad', 'Angry'];
   const lifestyleStyles = ['Default', 'With a Pet', 'With Food', 'Playful', 'Mysterious', 'Charming', 'Relaxed', 'Emotional'];
+  const aspectRatios = [
+    { label: 'Square (1:1)', value: '1:1' },
+    { label: 'Portrait (3:4)', value: '3:4' },
+    { label: 'Landscape (4:3)', value: '4:3' },
+    { label: 'Tall (9:16)', value: '9:16' },
+    { label: 'Wide (16:9)', value: '16:9' },
+  ];
+  const imageCounts = [1, 2, 3, 4];
   
   const hasNoDescription = !faceDescription.trim() && age === 'Any' && gender === 'Any' && ethnicity === 'Any' && hairColor === 'Any';
 
@@ -205,10 +214,20 @@ const App: React.FC = () => {
       setLifestyleLoadingMessage('Analyzing prompt...');
       const cleanedPrompt = await cleanScenePrompt(lifestylePrompt);
 
-      setLifestyleLoadingMessage('Creating scene...');
-      const result = await generateLifestyleScene(faceImage.url, faceImage.mimeType, cleanedPrompt, expression, lifestyleStyle);
-      setLifestyleImage(result);
-      setLifestyleHistory(prev => [result, ...prev.filter(item => item !== result)]);
+      setLifestyleLoadingMessage(imageCount > 1 ? `Creating ${imageCount} scenes...` : 'Creating scene...');
+      const results = await generateLifestyleScene(faceImage.url, faceImage.mimeType, cleanedPrompt, expression, lifestyleStyle, aspectRatio, imageCount);
+      
+      // Set the first image as the main display
+      if (results.length > 0) {
+        setLifestyleImage(results[0]);
+        // Add all results to history
+        setLifestyleHistory(prev => [...results, ...prev]);
+        
+        // Auto-show history if multiple images were generated
+        if (results.length > 1) {
+            setShowLifestyleHistory(true);
+        }
+      }
     } catch (e) {
       console.error(e);
       setError(e instanceof Error ? e.message : 'An unknown error occurred while creating the lifestyle scene.');
@@ -216,7 +235,7 @@ const App: React.FC = () => {
       setIsLoadingLifestyle(false);
       setLifestyleLoadingMessage('Creating...'); // Reset for next time
     }
-  }, [lifestylePrompt, faceImage, expression, lifestyleStyle]);
+  }, [lifestylePrompt, faceImage, expression, lifestyleStyle, aspectRatio, imageCount]);
   
   const handleReset = () => {
     setCurrentStep(Step.Face);
@@ -224,6 +243,8 @@ const App: React.FC = () => {
     setLifestylePrompt('');
     setExpression('Neutral');
     setLifestyleStyle('Default');
+    setAspectRatio('1:1');
+    setImageCount(1);
     setAge('Any');
     setGender('Any');
     setEthnicity('Any');
@@ -265,6 +286,23 @@ const App: React.FC = () => {
     setLifestyleImage(imageUrl);
   };
 
+  // Logic for preview modal navigation
+  const previewIndex = previewImageUrl ? lifestyleHistory.indexOf(previewImageUrl) : -1;
+  const hasNextPreview = previewIndex !== -1 && previewIndex < lifestyleHistory.length - 1;
+  const hasPrevPreview = previewIndex !== -1 && previewIndex > 0;
+
+  const handleNextPreview = useCallback(() => {
+    if (hasNextPreview) {
+      setPreviewImageUrl(lifestyleHistory[previewIndex + 1]);
+    }
+  }, [hasNextPreview, lifestyleHistory, previewIndex]);
+
+  const handlePrevPreview = useCallback(() => {
+    if (hasPrevPreview) {
+      setPreviewImageUrl(lifestyleHistory[previewIndex - 1]);
+    }
+  }, [hasPrevPreview, lifestyleHistory, previewIndex]);
+
   return (
     <div className="min-h-screen bg-gray-900 text-white font-sans flex flex-col items-center p-4 sm:p-6 lg:p-8">
       <div className="w-full">
@@ -286,15 +324,29 @@ const App: React.FC = () => {
                 Step 1: Describe or Upload a Face
               </label>
               
-              <textarea
-                id="faceDescription"
-                rows={3}
-                className="w-full bg-gray-900 border border-gray-600 rounded-lg p-3 focus:ring-2 focus:ring-sky-500 focus:border-sky-500 transition duration-200 placeholder-gray-500 disabled:opacity-50"
-                placeholder="e.g., smiling, wearing glasses, with a distinctive birthmark. This adds extra detail."
-                value={faceDescription}
-                onChange={(e) => setFaceDescription(e.target.value)}
-                disabled={isLoadingFace}
-              />
+              <div className="relative">
+                <textarea
+                  id="faceDescription"
+                  rows={3}
+                  className="w-full bg-gray-900 border border-gray-600 rounded-lg p-3 pr-10 focus:ring-2 focus:ring-sky-500 focus:border-sky-500 transition duration-200 placeholder-gray-500 disabled:opacity-50"
+                  placeholder="e.g., smiling, wearing glasses, with a distinctive birthmark. This adds extra detail."
+                  value={faceDescription}
+                  onChange={(e) => setFaceDescription(e.target.value)}
+                  disabled={isLoadingFace}
+                />
+                {faceDescription && !isLoadingFace && (
+                  <button
+                    onClick={() => setFaceDescription('')}
+                    className="absolute bottom-3 right-3 text-gray-500 hover:text-gray-300 focus:outline-none transition-colors"
+                    aria-label="Clear description"
+                    title="Clear text"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                      <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                    </svg>
+                  </button>
+                )}
+              </div>
 
               <div className="mt-4">
                 <button
@@ -458,15 +510,74 @@ const App: React.FC = () => {
                 </div>
               </div>
 
-              <textarea
-                id="lifestylePrompt"
-                rows={4}
-                className="w-full bg-gray-900 border border-gray-600 rounded-lg p-3 focus:ring-2 focus:ring-teal-500 focus:border-teal-500 transition duration-200 placeholder-gray-500 disabled:opacity-50"
-                placeholder="e.g., Drinking coffee at a cozy cafe, reading a book at the library, hiking on a sunny mountain trail."
-                value={lifestylePrompt}
-                onChange={(e) => setLifestylePrompt(e.target.value)}
-                disabled={currentStep !== Step.Lifestyle || isLoadingLifestyle}
-              />
+              <div className="mb-4 grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-400 mb-2">
+                    Aspect Ratio:
+                  </label>
+                  <div className="flex flex-wrap gap-2">
+                    {aspectRatios.map((ratio) => (
+                      <button
+                        key={ratio.value}
+                        onClick={() => setAspectRatio(ratio.value)}
+                        disabled={currentStep !== Step.Lifestyle}
+                        className={`px-2 py-1.5 text-xs sm:text-sm font-semibold rounded-full transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed ${
+                          aspectRatio === ratio.value
+                            ? 'bg-indigo-500 text-white'
+                            : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                        }`}
+                      >
+                        {ratio.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-400 mb-2">
+                    Image Count:
+                  </label>
+                  <div className="flex flex-wrap gap-2">
+                    {imageCounts.map((count) => (
+                      <button
+                        key={count}
+                        onClick={() => setImageCount(count)}
+                        disabled={currentStep !== Step.Lifestyle}
+                        className={`w-8 h-8 flex items-center justify-center text-sm font-semibold rounded-full transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed ${
+                          imageCount === count
+                            ? 'bg-pink-500 text-white'
+                            : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                        }`}
+                      >
+                        {count}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              <div className="relative">
+                <textarea
+                  id="lifestylePrompt"
+                  rows={4}
+                  className="w-full bg-gray-900 border border-gray-600 rounded-lg p-3 pr-10 focus:ring-2 focus:ring-teal-500 focus:border-teal-500 transition duration-200 placeholder-gray-500 disabled:opacity-50"
+                  placeholder="e.g., Drinking coffee at a cozy cafe, reading a book at the library, hiking on a sunny mountain trail."
+                  value={lifestylePrompt}
+                  onChange={(e) => setLifestylePrompt(e.target.value)}
+                  disabled={currentStep !== Step.Lifestyle || isLoadingLifestyle}
+                />
+                {lifestylePrompt && currentStep === Step.Lifestyle && !isLoadingLifestyle && (
+                  <button
+                    onClick={() => setLifestylePrompt('')}
+                    className="absolute bottom-3 right-3 text-gray-500 hover:text-gray-300 focus:outline-none transition-colors"
+                    aria-label="Clear prompt"
+                    title="Clear text"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                      <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                    </svg>
+                  </button>
+                )}
+              </div>
             </div>
 
             <button
@@ -474,7 +585,7 @@ const App: React.FC = () => {
               disabled={currentStep !== Step.Lifestyle || isLoadingLifestyle || !lifestylePrompt.trim()}
               className="w-full bg-teal-600 hover:bg-teal-500 disabled:bg-teal-800 disabled:cursor-not-allowed text-white font-bold py-3 px-4 rounded-lg transition duration-200 flex items-center justify-center"
             >
-              {isLoadingLifestyle ? lifestyleLoadingMessage : 'Generate Scene'}
+              {isLoadingLifestyle ? lifestyleLoadingMessage : (imageCount > 1 ? `Generate ${imageCount} Scenes` : 'Generate Scene')}
             </button>
           </div>
 
@@ -537,6 +648,8 @@ const App: React.FC = () => {
                   history={lifestyleHistory}
                   onSelect={handleSelectFromLifestyleHistory}
                   currentImageUrl={lifestyleImage}
+                  onView={(url) => setPreviewImageUrl(url)}
+                  onClose={() => setShowLifestyleHistory(false)}
               />
             )}
           </div>
@@ -544,7 +657,12 @@ const App: React.FC = () => {
         </div>
       </div>
       {previewImageUrl && (
-        <ImagePreviewModal imageUrl={previewImageUrl} onClose={() => setPreviewImageUrl(null)} />
+        <ImagePreviewModal 
+          imageUrl={previewImageUrl} 
+          onClose={() => setPreviewImageUrl(null)} 
+          onNext={hasNextPreview ? handleNextPreview : undefined}
+          onPrev={hasPrevPreview ? handlePrevPreview : undefined}
+        />
       )}
     </div>
   );

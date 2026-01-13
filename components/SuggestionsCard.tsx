@@ -1,3 +1,4 @@
+
 import React from 'react';
 
 interface SuggestionsCardProps {
@@ -28,14 +29,28 @@ const SuggestionsCard: React.FC<SuggestionsCardProps> = ({
   return (
     <div>
       <div className="space-y-3 mb-4">
-        <input
-            type="text"
-            value={suggestionTopic}
-            onChange={(e) => onSuggestionTopicChange(e.target.value)}
-            placeholder="Enter a topic, e.g., 'at the beach'"
-            className="w-full bg-gray-900 border border-gray-600 rounded-lg p-3 focus:ring-2 focus:ring-amber-500 focus:border-amber-500 transition duration-200 placeholder-gray-500 disabled:opacity-50"
-            disabled={isLoading}
-        />
+        <div className="relative">
+            <input
+                type="text"
+                value={suggestionTopic}
+                onChange={(e) => onSuggestionTopicChange(e.target.value)}
+                placeholder="Enter a topic, e.g., 'at the beach'"
+                className="w-full bg-gray-900 border border-gray-600 rounded-lg p-3 pr-10 focus:ring-2 focus:ring-amber-500 focus:border-amber-500 transition duration-200 placeholder-gray-500 disabled:opacity-50"
+                disabled={isLoading}
+            />
+            {suggestionTopic && !isLoading && (
+              <button
+                onClick={() => onSuggestionTopicChange('')}
+                className="absolute top-3 right-3 text-gray-500 hover:text-gray-300 focus:outline-none transition-colors"
+                aria-label="Clear topic"
+                title="Clear text"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                </svg>
+              </button>
+            )}
+        </div>
         <button
             onClick={onGenerate}
             disabled={isLoading || !suggestionTopic.trim()}

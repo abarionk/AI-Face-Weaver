@@ -1,3 +1,4 @@
+
 import { GoogleGenAI, Modality, Type } from "@google/genai";
 
 if (!process.env.API_KEY) {
@@ -104,9 +105,19 @@ const getStyleDetails = (style: string): string => {
  * @param scenePrompt - The user's description of the lifestyle scene.
  * @param expression - The desired facial expression for the person.
  * @param style - The desired artistic style for the photo.
- * @returns A promise that resolves to the base64 URL of the new lifestyle image.
+ * @param aspectRatio - The desired aspect ratio for the output image.
+ * @param numberOfImages - The number of variations to generate (default 1).
+ * @returns A promise that resolves to an array of base64 URLs of the new lifestyle images.
  */
-export const generateLifestyleScene = async (base64ImageUrl: string, mimeType: string, scenePrompt: string, expression: string, style: string): Promise<string> => {
+export const generateLifestyleScene = async (
+  base64ImageUrl: string, 
+  mimeType: string, 
+  scenePrompt: string, 
+  expression: string, 
+  style: string,
+  aspectRatio: string = "1:1",
+  numberOfImages: number = 1
+): Promise<string[]> => {
   const base64Data = base64ImageUrl.split(',')[1];
 
   if (!base64Data) {
@@ -137,40 +148,51 @@ Your task is to place the person from the provided image into a new scene.
 
 **FINAL CHECK:** Before outputting, ask yourself: "Does the face in my generated image look like a twin, or does it look like the *exact same person* from the input image?" The answer must be the latter. **The preservation of the person's unique facial identity is the only metric for success.**`;
 
-  const response = await ai.models.generateContent({
-    model: 'gemini-2.5-flash-image-preview',
-    contents: {
-      parts: [
-        {
-          inlineData: {
-            data: base64Data,
-            mimeType: mimeType,
+  const generateSingleImage = async (): Promise<string> => {
+    const response = await ai.models.generateContent({
+      model: 'gemini-2.5-flash-image-preview',
+      contents: {
+        parts: [
+          {
+            inlineData: {
+              data: base64Data,
+              mimeType: mimeType,
+            },
           },
-        },
-        {
-          text: fullPrompt,
-        },
-      ],
-    },
-    config: {
-      responseModalities: [Modality.IMAGE, Modality.TEXT],
-    },
-  });
+          {
+            text: fullPrompt,
+          },
+        ],
+      },
+      config: {
+        responseModalities: [Modality.IMAGE, Modality.TEXT],
+        imageConfig: {
+          aspectRatio: aspectRatio,
+        }
+      },
+    });
 
-  const imagePart = response.candidates?.[0]?.content?.parts?.find(part => part.inlineData);
+    const imagePart = response.candidates?.[0]?.content?.parts?.find(part => part.inlineData);
 
-  if (!imagePart || !imagePart.inlineData) {
-    const textPart = response.candidates?.[0]?.content?.parts?.find(part => part.text);
-    if(textPart?.text) {
-        throw new Error(`Image generation failed. The model responded with: ${textPart.text}`);
+    if (!imagePart || !imagePart.inlineData) {
+      const textPart = response.candidates?.[0]?.content?.parts?.find(part => part.text);
+      if(textPart?.text) {
+          throw new Error(`Image generation failed. The model responded with: ${textPart.text}`);
+      }
+      throw new Error("Image generation failed. The model did not return an image.");
     }
-    throw new Error("Image generation failed. The model did not return an image.");
-  }
-  
-  const base64ImageBytes: string = imagePart.inlineData.data;
-  const outputMimeType = imagePart.inlineData.mimeType;
+    
+    const base64ImageBytes: string = imagePart.inlineData.data;
+    const outputMimeType = imagePart.inlineData.mimeType;
 
-  return `data:${outputMimeType};base64,${base64ImageBytes}`;
+    return `data:${outputMimeType};base64,${base64ImageBytes}`;
+  };
+
+  // Generate multiple images in parallel
+  const promises = Array(numberOfImages).fill(0).map(() => generateSingleImage());
+  const results = await Promise.all(promises);
+  
+  return results;
 };
 
 /**
